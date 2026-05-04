@@ -1,0 +1,145 @@
+/*
+ * NOTES:
+ *
+ */
+
+
+patterns used
+- builder pattern
+- strategy
+- observer
+- state machine - for different statuses
+
+- don't use taskStatus enum directly ; instead use state machine pattern
+- in the taskState interface, all states should be included/handled.
+- instead of a parameterized ctor, we use a builder pattern because there are many arguments
+
+we are focusing only on the class level designs, hence we are not creating the CRUD APIs.
+
+******************************************************************************
+`CopyOnWriteArrayList` is a class in Java from the `java.util.concurrent` package.
+It’s a thread-safe variant of ArrayList designed for situations
+where reads are frequent and writes are rare.
+
+### 🔑 Key Idea
+
+Whenever you modify the list (add, remove, set), it **creates a new copy of the underlying array** instead of changing the existing one.
+
+---
+
+### 🧠 How it works
+
+* **Read operations** (like `get()`, iteration) → fast, no locking needed
+* **Write operations** (like `add()`, `remove()`) → create a **new copy** of the array
+* This ensures that **other threads can safely read the old version** while a write is happening
+
+---
+
+### ⚡ Why use it?
+
+* Safe for **multi-threaded environments**
+* No `ConcurrentModificationException` during iteration
+* Iterators work on a **snapshot** of the list
+
+---
+
+### ⚠️ Downsides
+
+* **Memory overhead** (copies array on every write)
+* **Slow writes** (because of copying)
+* Not suitable if there are **frequent modifications**
+
+---
+
+### 🆚 When to use
+
+Use `CopyOnWriteArrayList` when:
+
+* You have **many reads, few writes**
+* You need **safe iteration without locking**
+
+Avoid it when:
+
+* Writes happen frequently (performance will degrade)
+
+---
+
+### 🧩 Simple analogy
+
+Think of it like a **photocopied document**:
+
+* Readers read their own copy
+* Writers create a new version instead of editing the original
+
+****************************************************************************
+
+so what is the difference between
+Task task = new TaskBuilder()
+    .setTitle(request.getTitle())
+    .setDescription(request.getDescription())
+    .build();
+and new Task(request.getTitle(), request.getDescription()) ?
+one is a builder pattern and one is a parameterized ctor.
+
+👉 The constructor is about direct creation
+👉 The builder (from the Builder Pattern) is about flexible, readable, and safe construction
+
+📦 When constructor works perfectly
+If your class is simple:
+2–4 fields
+all required
+no confusion in ordering
+
+⚠️ Where constructors start breaking down
+Imagine your Task grows:
+new Task(    title,    description,    priority,    dueDate,    assignedUser,    tags,    status,    createdAt);
+Problems:
+😵 Hard to read → what is the 5th parameter?
+❌ Easy to mess up order
+🤷 Optional fields become awkward (null, overloads)
+🔁 Too many constructor overloads
+
+✅ What builder fixes
+Benefits:
+✔️ Readable (self-documenting)
+✔️ Order doesn’t matter
+✔️ Optional fields are easy
+✔️ Can enforce validation inside build()
+✔️ Avoids constructor explosion
+
+
+
+🔒 Hidden advantage: validation & invariants
+With builder:
+public Task build() {
+    if (title == null) {
+        throw new IllegalStateException("Title is required");
+    }
+    return new Task(...);
+}
+With constructor, this gets messy or duplicated across overloads.
+
+🧩 Subtle design difference
+Constructor → “Give me everything upfront”
+Builder → “Let’s assemble this step by step”
+
+🎯 So which should you use?
+Use constructor when:
+object is small and stable
+all fields are mandatory
+readability is not an issue
+
+Use builder when:
+object has many fields
+many are optional
+you want clean, maintainable code
+
+Builder pattern also reduces the number of ctors required for different combinations.
+
+Key Steps to Implement
+- Static Nested Class: Create a static inner class named Builder inside your main class.
+- Duplicate Fields: Copy all fields from the outer class to the builder class.
+- Mandatory Fields: Use the builder's constructor to set required attributes.
+- Fluent Setters: Add methods to set optional parameters. These methods must return this to allow method chaining.
+- Build Method: Provide a build() method in the builder that calls a private constructor of the main class, passing the builder instance itself.
+****************************************************************************
