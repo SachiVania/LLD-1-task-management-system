@@ -1,10 +1,13 @@
 package models;
 
-import State.TaskState;
-import State.TodoState;
+import observer.TaskObserver;
+import state.TaskState;
+import state.TodoState;
 import enums.TaskPriority;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 public class Task {
@@ -19,6 +22,12 @@ public class Task {
 
     private final User createdBy;
 
+    private List<TaskObserver> observers;
+    private List<Comment> comments;
+
+    // we need to send notifications for change in priority, assignee, comment,
+
+
     // Because of the builder pattern, we need only one ctor
     private Task( TaskBuilder builder ) {
         this.id = builder.id;
@@ -29,15 +38,54 @@ public class Task {
         this.createdBy = builder.createdBy;
         this.assignee = builder.assignee;
         this.currentState = new TodoState(); // Initial state
+        this.observers = new ArrayList<>();
+        this.comments = new ArrayList<>();
     }
 
     public void setState(TaskState state) {
         this.currentState = state;
+        notifyObservers("status");
+    }
+    public void startProgress() { currentState.startProgress(this);}
+    public void completeTask() { currentState.completeTask(this);}
+    public void reopenTask() { currentState.reopenTask(this);}
+    // Observers -----------------
+    public void addObserver (TaskObserver observer) {
+        observers.add(observer);
     }
 
-    // Getters and Setters
+    public void removeObserver (TaskObserver observer) {
+        observers.remove(observer);
+    }
 
-    
+    public void notifyObservers (String changeType) {
+        for (TaskObserver observer : observers) {
+            observer.update(this, changeType);
+        }
+    }
+
+    // notify observers ----------
+    public synchronized void setAssignee(User user) {
+        this.assignee = user;
+        notifyObservers("assignee");
+    }
+    public synchronized void updatePriority(TaskPriority priority) {
+        this.priority = priority;
+        notifyObservers("priority");
+    }
+    public synchronized void addComment(Comment comment) {
+        comments.add(comment);
+        notifyObservers("comment");
+    }
+
+    // Getters and Setters ------------
+
+    public String getTitle() {
+        return this.title;
+    }
+
+
+
     // Builder -------------------
     // 1. builder class created inside the main class, and as static
     public static class TaskBuilder {

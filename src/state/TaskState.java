@@ -1,4 +1,4 @@
-package State;
+package state;
 
 import enums.TaskStatus;
 import models.Task;

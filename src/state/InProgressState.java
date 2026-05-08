@@ -1,18 +1,17 @@
-package State;
+package state;
 
 import enums.TaskStatus;
 import models.Task;
 
-public class DoneState implements TaskState {
-
+public class InProgressState implements TaskState {
     @Override
     public void startProgress(Task task) {
-        System.out.println("Cannot start a completed task. Reopen it first");
+        System.out.println("Task is already in progress");
     }
 
     @Override
     public void completeTask(Task task) {
-        System.out.println("Task is already done");
+        task.setState(new DoneState());
     }
 
     @Override
@@ -22,6 +21,6 @@ public class DoneState implements TaskState {
 
     @Override
     public TaskStatus getTaskStatus() {
-        return TaskStatus.DONE;
+        return TaskStatus.IN_PROGRESS;
     }
 }

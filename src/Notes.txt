@@ -13,6 +13,7 @@ patterns used
 - don't use taskStatus enum directly ; instead use state machine pattern
 - in the taskState interface, all states should be included/handled.
 - instead of a parameterized ctor, we use a builder pattern because there are many arguments
+- we need to send notifications for change in priority, assignee, comment, so we use observer pattern
 
 we are focusing only on the class level designs, hence we are not creating the CRUD APIs.
 
@@ -143,3 +144,227 @@ Key Steps to Implement
 - Fluent Setters: Add methods to set optional parameters. These methods must return this to allow method chaining.
 - Build Method: Provide a build() method in the builder that calls a private constructor of the main class, passing the builder instance itself.
 ****************************************************************************
+
+Observer pattern
+The Observer Pattern is basically:
+
+“When something changes, automatically notify all interested parties.”
+
+It has 2 main roles:
+
+Subject (Publisher) → the thing that changes
+Observers (Subscribers) → the ones who want updates
+
+so here task = subject, publisher ; and activity logger = observer, subscriber
+
+👉 The Task doesn’t know who is listening
+👉 It just says: “something changed”
+
+💡 Why this is useful in this design
+
+Because the system can easily grow:
+
+You can add a new feature like:
+
+Slack notifications
+Audit tracking
+Metrics collection
+
+👉 Without touching Task at all
+
+Just add a new observer:
+class SlackObserver implements Observer
+
+***************************************************
+    public synchronized void setAssignee(User user) {
+        this.assignee = user;
+        addLog("Assigned to " + user.getName());
+        notifyObservers("assignee");
+    }
+
+When you mark a method as synchronized, only one thread can execute this method on the same object at a time.
+
+In simple terms:
+If multiple threads call setAssignee() on the same Task object:
+One thread enters
+Others wait (block) until the first finishes
+
+This is done to avoid race conditions—situations where multiple threads modify shared data at the same time and cause inconsistent results
+
+What actually happens under the hood
+The method acquires a lock (monitor) on the current object (this)
+While one thread holds that lock:
+No other thread can enter any synchronized method on that same object
+Once the method finishes:
+The lock is released
+Another thread can enter
+
+So effectively, this becomes a critical section that only one thread can execute at a time
+
+Your method does multiple related operations:
+
+this.assignee = user;
+addLog(...);
+notifyObservers(...);
+
+If two threads ran this simultaneously:
+
+One thread might overwrite assignee
+Logs could get mixed up
+Observers could receive inconsistent state
+
+Using synchronized ensures:
+
+These steps happen atomically (as one unit)
+The object stays in a consistent state
+
+
+
+*********************************************************************************
+
+in real world, when to use the observer pattern and when to use a queue like message queue?
+You’re essentially comparing:
+* **Observer Pattern**
+* vs **message queues / event-driven systems** (e.g., Apache Kafka, RabbitMQ)
+---
+
+# 🧠 The core difference
+👉 **Observer Pattern = in-memory, synchronous, same process**
+👉 **Message Queue = asynchronous, distributed, decoupled systems**
+---
+# 🧩 1. Observer Pattern (like in your Task example)
+In your LLD code:
+* Task changes → observers are notified immediately
+* Everything runs **inside the same application**
+
+### Characteristics:
+* 🧵 Same JVM / process
+* ⚡ Usually synchronous (or lightweight async)
+* 🔗 Tighter coupling (objects know observers)
+* 💡 No persistence (if app crashes, events are gone)
+
+### Example use cases:
+* UI updates (button click → listeners)
+* Domain events inside app
+* Logging / auditing hooks
+* Small modular systems
+
+👉 In your task system:
+* “task updated” → notify email service / logger / UI
+  ✔️ Perfect use of Observer
+
+---
+# 🚀 2. Message Queue (Kafka, RabbitMQ, etc.)
+Now imagine scaling that same system:
+
+* Task service
+* Notification service
+* Analytics service
+* Email service
+
+All running independently.
+You wouldn’t use observers here.
+
+Instead:
+```text
+Task Updated → publish event → queue → multiple services consume
+```
+
+### Characteristics:
+* 🌍 Cross-service communication
+* ⏱️ Asynchronous
+* 💾 Durable (events stored)
+* 🔌 Loosely coupled
+* 📈 Scalable
+
+---
+# ⚖️ When to use which
+
+## ✅ Use Observer Pattern when:
+
+* Everything is in **one application**
+* You need **instant reaction**
+* No need for persistence/retry
+* Simpler system
+
+👉 Think: “internal event handling”
+
+---
+## ✅ Use Message Queue when:
+
+* Multiple **services / systems** involved
+* Need **reliability (retry, durability)**
+* Work should be **asynchronous**
+* System needs to **scale independently**
+
+👉 Think: “system-to-system communication”
+
+---
+# 🔥 Real-world comparison
+### 🟢 Observer (inside app)
+
+```text
+Task.assignUser()
+  → notify observers
+     → send email
+     → log activity
+```
+
+### 🔵 Message Queue (distributed system)
+
+```text
+Task Service
+  → publish "TaskAssigned" event
+
+Kafka / RabbitMQ
+  → Notification Service consumes
+  → Analytics Service consumes
+  → Audit Service consumes
+```
+
+---
+
+# ⚠️ A common mistake
+
+Trying to use Observer in a distributed system leads to:
+
+* tight coupling
+* no fault tolerance
+* no scalability
+
+And using Kafka for simple in-memory notifications:
+
+* over-engineering
+* unnecessary complexity
+
+---
+
+# 🧠 Rule of thumb
+
+> If your system boundary is a **single JVM → Observer**
+> If your system boundary is **multiple services → Queue**
+
+---
+
+# 🧩 Bonus: Hybrid approach (real systems)
+
+Modern systems often combine both:
+
+* Inside a service → Observer pattern
+* Between services → Kafka/RabbitMQ
+
+Example:
+
+```text
+Task updated
+  → Observer triggers event publisher
+     → publishes to Kafka
+```
+
+---
+
+# 🎯 Final takeaway
+
+* Observer = **lightweight, local, immediate**
+* Queue = **robust, distributed, asynchronous**
+
