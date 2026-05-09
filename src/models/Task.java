@@ -1,5 +1,6 @@
 package models;
 
+import enums.TaskStatus;
 import observer.TaskObserver;
 import state.TaskState;
 import state.TodoState;
@@ -84,6 +85,13 @@ public class Task {
         return this.title;
     }
 
+    public User getAssignee() {
+        return this.assignee;
+    }
+
+    public TaskStatus getStatus() {
+        return this.currentState.getTaskStatus();
+    }
 
 
     // Builder -------------------
@@ -112,7 +120,7 @@ public class Task {
         // these methods should return builder object
         public TaskBuilder description(String desc) { this.description = desc; return this;}
         public TaskBuilder assignee(User assignee) { this.assignee = assignee; return this;}
-        public TaskBuilder priority(String desc) { this.description = desc; return this;}
+        public TaskBuilder priority(TaskPriority priority) { this.priority = priority; return this;}
         public TaskBuilder dueDate(LocalDate dueDate) { this.dueDate = dueDate; return this;}
         public TaskBuilder createdBy(User createdBy) { this.createdBy = createdBy; return this;}
 

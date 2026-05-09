@@ -3,12 +3,16 @@
  *
  */
 
+https://github.com/ashishps1/awesome-low-level-design/blob/main/solutions/java/src/taskmanagementsystem/
 
 patterns used
 - builder pattern
 - strategy
 - observer
 - state machine - for different statuses
+- singleton
+
+return new ArrayList<>(tasks); // Return a copy to prevent external modification of tasks in a task list
 
 - don't use taskStatus enum directly ; instead use state machine pattern
 - in the taskState interface, all states should be included/handled.
@@ -16,6 +20,129 @@ patterns used
 - we need to send notifications for change in priority, assignee, comment, so we use observer pattern
 
 we are focusing only on the class level designs, hence we are not creating the CRUD APIs.
+
+******************************************************************************
+tasks.sort(Comparator.comparing(Task::getPriority).reversed());
+here whae does Task::getPriority mean? is it a function call?
+
+`Task::getPriority` is a **method reference** in Java.
+
+It is **not calling the function immediately**.
+
+This:
+
+```java
+Task::getPriority
+```
+
+means:
+
+> “for a Task object, use its `getPriority()` method”
+
+It is shorthand for a lambda expression like:
+
+```java
+task -> task.getPriority()
+```
+
+So your line:
+
+```java
+tasks.sort(Comparator.comparing(Task::getPriority).reversed());
+```
+
+is equivalent to:
+
+```java
+tasks.sort(
+    Comparator.comparing(task -> task.getPriority())
+              .reversed()
+);
+```
+
+---
+
+## What happens internally
+
+Suppose you have:
+
+```java
+class Task {
+    private int priority;
+
+    public int getPriority() {
+        return priority;
+    }
+}
+```
+
+and:
+
+```java
+List<Task> tasks;
+```
+
+Then:
+
+```java
+Comparator.comparing(Task::getPriority)
+```
+
+creates a comparator that:
+
+1. takes two `Task` objects,
+2. calls `getPriority()` on both,
+3. compares their priority values.
+
+Then:
+
+```java
+.reversed()
+```
+
+makes it descending order.
+
+---
+
+## Important distinction
+
+### Method call
+
+```java
+task.getPriority()
+```
+
+* executes immediately,
+* returns a value.
+
+---
+
+### Method reference
+
+```java
+Task::getPriority
+```
+
+* does **not** execute yet,
+* passes the method itself as behavior/function,
+* Java calls it later when sorting.
+
+---
+
+## Think of it like this
+
+```java
+Task::getPriority
+```
+
+means:
+
+```text id="f97qz9"
+"If you give me a Task,
+I know how to get its priority."
+```
+
+So `Comparator.comparing(...)` receives a function that extracts the comparison key.
 
 ******************************************************************************
 `CopyOnWriteArrayList` is a class in Java from the `java.util.concurrent` package.
@@ -368,3 +495,226 @@ Task updated
 * Observer = **lightweight, local, immediate**
 * Queue = **robust, distributed, asynchronous**
 
+***********************************************************************************
+Thread Safety: HashMap is not thread-safe,
+    while ConcurrentHashMap is designed for concurrent use by multiple threads.
+Performance: HashMap is faster in single-threaded environments.
+    ConcurrentHashMap is highly efficient in multi-threaded environments,
+    avoiding locking the entire map.
+Null Keys/Values: HashMap allows one null key and multiple null values;
+    ConcurrentHashMap prohibits null keys and values.
+Iteration: HashMap is fail-fast (throws ConcurrentModificationException if modified during iteration).
+    ConcurrentHashMap uses fail-safe iterators that do not throw this exception.
+Internal Structure: HashMap uses arrays/linked lists/red-black trees.
+    ConcurrentHashMap uses a similar structure but with finer-grained locking mechanisms.
+
+
+
+**********************************************************************************
+    public List<Task> listTasksByUser(String userId) {
+        User user = users.get(userId);
+        return tasks.values().stream()
+                .filter(task -> user.equals(task.getAssignee()))
+                .toList();
+    }
+here why can't we use userId directly to get the list of tasks?
+
+Because the `tasks` collection is not organized by `userId`.
+
+From the code structure, it’s likely something like:
+
+```java id="h5bxf1"
+Map<String, Task> tasks
+```
+
+So:
+
+* key = `taskId`
+* value = `Task`
+
+Example:
+
+```text id="h2g1nr"
+tasks = {
+   "T1" -> Task(...assignee=user1)
+   "T2" -> Task(...assignee=user2)
+   "T3" -> Task(...assignee=user1)
+}
+```
+
+Since the map is indexed by **task ID**, you cannot do:
+
+```java id="4zoc9t"
+tasks.get(userId)
+```
+
+because `userId` is not the key.
+
+---
+
+So the code must:
+
+1. iterate through all tasks,
+2. check each task’s assignee,
+3. collect matching tasks.
+
+That’s what this does:
+
+```java id="spprnq"
+tasks.values().stream()
+    .filter(task -> user.equals(task.getAssignee()))
+    .toList();
+```
+
+---
+
+# Why use `user.equals(task.getAssignee())` instead of userId?
+
+Because `task.getAssignee()` probably returns a `User` object, not a string.
+
+Something like:
+
+```java id="jlwm9h"
+class Task {
+    private User assignee;
+}
+```
+
+So comparison becomes:
+
+```java id="y2e1el"
+user.equals(task.getAssignee())
+```
+
+instead of:
+
+```java id="j85ub2"
+task.getAssignee().getId().equals(userId)
+```
+
+Both are valid.
+
+---
+
+# More efficient real-world design
+
+In production, you usually avoid scanning all tasks every time.
+
+Instead you maintain:
+
+```java id="nlf43t"
+Map<String, List<Task>> tasksByUser
+```
+
+Then lookup becomes:
+
+```java id="n0jlwm"
+tasksByUser.get(userId)
+```
+
+which is much faster.
+
+Or in SQL:
+
+```sql id="p4yfq9"
+SELECT * FROM tasks WHERE assignee_id = ?
+```
+
+The current implementation is simple because it’s an interview-style in-memory LLD example.
+
+
+Q. but can we use userId if we have a list of tasks instead of the map?
+Even if `tasks` were a `List<Task>`, you still generally **could not directly use `userId` to get tasks** unless the list is specially organized/indexed.
+
+With a normal list:
+
+```java id="37zq3o"
+List<Task> tasks;
+```
+
+you still need to search through the list:
+
+```java id="i3rq8g"
+return tasks.stream()
+    .filter(task -> task.getAssignee().getId().equals(userId))
+    .toList();
+```
+
+because a list is indexed by **position** (`0`, `1`, `2`...), not by `userId`.
+
+---
+
+# Difference between structures
+
+## List
+
+```text id="2c6m5j"
+Index → Task
+0     → Task1
+1     → Task2
+2     → Task3
+```
+
+Access:
+
+```java id="3wxgql"
+tasks.get(0)
+```
+
+You cannot do:
+
+```java id="ahmkmy"
+tasks.get(userId)
+```
+
+because `userId` is not a numeric index.
+
+---
+
+## Map keyed by taskId
+
+```text id="y3j8xz"
+taskId → Task
+T1     → Task1
+T2     → Task2
+```
+
+Access:
+
+```java id="y1m2k9"
+tasks.get("T1")
+```
+
+Still not by `userId`.
+
+---
+
+## Map keyed by userId
+
+Only *this* structure allows direct lookup:
+
+```java id="6o4ny7"
+Map<String, List<Task>> tasksByUser;
+```
+
+Then:
+
+```java id="a7z8w1"
+tasksByUser.get(userId)
+```
+
+works directly.
+
+---
+
+# Key idea
+
+You can directly retrieve data only by the structure’s key/index.
+
+| Data Structure            | Direct lookup by |
+| ------------------------- | ---------------- |
+| `List<Task>`              | position/index   |
+| `Map<String, Task>`       | taskId           |
+| `Map<String, List<Task>>` | userId           |
+
+So changing from `Map` to `List` alone does not make `userId` lookup direct.
