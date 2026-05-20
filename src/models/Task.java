@@ -30,6 +30,7 @@ public class Task {
 
 
     // Because of the builder pattern, we need only one ctor
+    // note that it is private so that it cannot be instantiated externally
     private Task( TaskBuilder builder ) {
         this.id = builder.id;
         this.title = builder.title;
@@ -50,6 +51,7 @@ public class Task {
     public void startProgress() { currentState.startProgress(this);}
     public void completeTask() { currentState.completeTask(this);}
     public void reopenTask() { currentState.reopenTask(this);}
+
     // Observers -----------------
     public void addObserver (TaskObserver observer) {
         observers.add(observer);

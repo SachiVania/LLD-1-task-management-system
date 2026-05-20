@@ -5,8 +5,6 @@ import models.User;
 import observer.ActivityLogger;
 
 import java.time.LocalDate;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -18,7 +16,8 @@ public class TaskManagementSystem {
     private Map<String, User> users;
     private Map<String, Task> tasks;
 
-    public TaskManagementSystem() {
+    // note that it is private so that it cannot be instantiated externally
+    private TaskManagementSystem() {
         users = new ConcurrentHashMap<>();
         tasks = new ConcurrentHashMap<>();
     }
